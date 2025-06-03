@@ -10,9 +10,12 @@ class LifXController:
     def execute_command(self, command):
         lifx = LifxLAN()
         device = lifx.get_lights()[0]
+
+        device.set_power("on")
+
         try:
             if command['action'] == 'turn_on':
-                device.set_power("on")
+                device.set_color([0, 0, 30000, 3500], rapid=True)
                 return "Lampe allumée"
 
             elif command['action'] == 'turn_off':
