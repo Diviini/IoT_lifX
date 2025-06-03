@@ -4,6 +4,7 @@ lifx = LifxLAN()
 devices = lifx.get_lights()
 
 print("Lampe(s) détectée(s) :", devices)
-for d in devices:
-    print("Nom :", d.get_label(), "| Adresse MAC :", d.mac_addr)
+for device in devices:
+    print("Adresse IP :", device.get_mac_addr())
+    print("Adresse MAC :", device.get_ip_addr())
 

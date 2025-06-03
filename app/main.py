@@ -5,9 +5,9 @@ from fastapi.responses import JSONResponse
 import os
 from dotenv import load_dotenv
 
-from speech_processor import SpeechProcessor
-from lifx_controller import LifXController
-from command_parser import CommandParser
+from .speech_processor import SpeechProcessor
+from .lifx_controller import LifXController
+from .command_parser import CommandParser
 
 load_dotenv()
 
@@ -36,7 +36,6 @@ async def process_voice(audio: UploadFile = File(...)):
 
         # Transcription
         text = speech_processor.transcribe(audio_path)
-
         # Parser la commande
         command = command_parser.parse(text)
 
