@@ -1,4 +1,0 @@
-LIFX_IP=192.168.1.XXX  # IP de ta lampe
-LIFX_MAC=XX:XX:XX:XX:XX:XX  # MAC de ta lampe
-WHISPER_MODEL=base  # ou small/medium selon la précision voulue
-DEBUG=True
