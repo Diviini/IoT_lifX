@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LifX Voice Control</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 LifX Voice Control</h1>
+
+        <!-- Enregistrement vocal -->
+        <div class="recording-section">
+            <button id="recordBtn" class="record-btn">🎙️</button>
+            <p>Cliquez pour enregistrer une commande vocale</p>
+        </div>
+
+        <!-- Upload de fichier -->
+        <div class="upload-area" id="uploadArea">
+            <p>📁 Ou glissez-déposez un fichier audio ici</p>
+            <input type="file" id="audioFile" accept="audio/*" class="hidden">
+        </div>
+
+        <!-- Statut -->
+        <div class="status" id="status">
+            Prêt à recevoir vos commandes vocales
+        </div>
+
+        <!-- Résultats -->
+        <div class="result hidden" id="result"></div>
+
+        <!-- Exemples -->
+        <div class="examples">
+            <h3>💡 Exemples de commandes :</h3>
+            <ul>
+                <li>"Allume la lumière"</li>
+                <li>"Éteins la lampe"</li>
+                <li>"Mets la lumière en rouge"</li>
+                <li>"Diminue la luminosité"</li>
+                <li>"Change la couleur en bleu"</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', path='/js/app.js') }}"></script>
+</body>
+</html>

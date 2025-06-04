@@ -1,44 +1,58 @@
-from lifxlan import Light
 from lifxlan import LifxLAN
-
-import os
-
 
 class LifXController:
 
-
     def execute_command(self, command):
         lifx = LifxLAN()
-        device = lifx.get_lights()[0]
+        lights = lifx.get_lights()
 
-        device.set_power("on")
+        if not lights:
+            return "Aucune lampe détectée"
+
+        device = lights[0]
 
         try:
-            if command['action'] == 'turn_on':
+            action = command.get('action')
+
+            if action == 'turn_on':
                 device.set_color([0, 0, 30000, 3500], rapid=True)
                 return "Lampe allumée"
 
-            elif command['action'] == 'turn_off':
-
+            elif action == 'turn_off':
                 device.set_power("off")
                 return "Lampe éteinte"
 
-            elif command['action'] == 'set_brightness':
+            elif action == 'set_brightness':
                 brightness = command.get('value', 50)
-                device.set_brightness(brightness * 655.35)  # 0-65535
+                device.set_brightness(int(brightness * 655.35))
                 return f"Luminosité réglée à {brightness}%"
 
-            elif command['action'] == 'set_color':
-                color = command.get('color', 'white')
+            elif action == 'increase_brightness':
+                _, _, current, _ = device.get_color()
+                new_value = min(65535, current + 5000)
+                device.set_color([0, 0, new_value, 3500])
+                return f"Luminosité augmentée à {int(new_value / 655.35)}%"
+
+            elif action == 'decrease_brightness':
+                _, _, current, _ = device.get_color()
+                new_value = max(0, current - 5000)
+                device.set_color([0, 0, new_value, 3500])
+                return f"Luminosité diminuée à {int(new_value / 655.35)}%"
+
+            elif action == 'set_color':
+                color = command.get('color', 'blanc')
                 hue, sat, bright, kelvin = self._get_color_values(color)
                 device.set_color([hue, sat, bright, kelvin])
                 return f"Couleur changée en {color}"
 
+            elif action == 'unknown':
+                return f"Commande non reconnue : \"{command.get('text', '')}\""
+
             else:
-                return "Commande non reconnue"
+                return f"Action non prise en charge : {action}"
 
         except Exception as e:
-            return f"Erreur: {str(e)}"
+            return f"Erreur lors de l'exécution : {str(e)}"
 
     def _get_color_values(self, color_name):
         colors = {
