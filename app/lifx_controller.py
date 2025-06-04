@@ -15,6 +15,7 @@ class LifXController:
             action = command.get('action')
 
             if action == 'turn_on':
+                device.set_power("on")
                 device.set_color([0, 0, 30000, 3500], rapid=True)
                 return "Lampe allumée"
 
