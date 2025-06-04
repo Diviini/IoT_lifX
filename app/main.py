@@ -67,6 +67,64 @@ async def process_text(command: TextCommand):
             "status": "error"
         }, status_code=500)
 
+
+@app.post("/process-voice")
+async def process_voice(audio: UploadFile = File(...)):
+    """Traite un fichier audio uploadé depuis le navigateur (fallback)"""
+    try:
+        # Lire le contenu du fichier
+        audio_content = await audio.read()
+
+        # Transcription
+        text = speech_processor.transcribe_uploaded_file(audio_content, language="fr")
+        print("Debug - Transcription:", text)
+
+        if not text.strip():
+            return JSONResponse({
+                "error": "Aucun texte détecté dans l'audio",
+                "status": "error"
+            }, status_code=400)
+
+        # Parser la commande
+        command = command_parser.parse(text)
+        print("Debug - Commande parsée:", command)
+
+        # Exécuter sur la lampe
+        result = lifx_controller.execute_command(command)
+
+        return JSONResponse({
+            "transcription": text,
+            "command": command,
+            "result": result,
+            "status": "success"
+        })
+
+    except Exception as e:
+        return JSONResponse({
+            "error": str(e),
+            "status": "error"
+        }, status_code=500)
+
+
+@app.post("/transcribe-only")
+async def transcribe_only(audio: UploadFile = File(...)):
+    """Transcrit seulement sans exécuter de commande"""
+    try:
+        audio_content = await audio.read()
+        text = speech_processor.transcribe_uploaded_file(audio_content, language="fr")
+
+        return JSONResponse({
+            "transcription": text,
+            "status": "success"
+        })
+
+    except Exception as e:
+        return JSONResponse({
+            "error": str(e),
+            "status": "error"
+        }, status_code=500)
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "LifX Voice Control"}
