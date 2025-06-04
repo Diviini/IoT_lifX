@@ -9,8 +9,6 @@ let currentStream;
 
 // Éléments DOM
 const recordBtn = document.getElementById('recordBtn');
-const uploadArea = document.getElementById('uploadArea');
-const audioFile = document.getElementById('audioFile');
 const status = document.getElementById('status');
 const result = document.getElementById('result');
 
@@ -55,13 +53,6 @@ function createListenToggleButton() {
 function initializeEventListeners() {
     // Enregistrement vocal
     recordBtn.addEventListener('click', toggleRecording);
-
-    // Upload de fichier
-    uploadArea.addEventListener('click', () => audioFile.click());
-    uploadArea.addEventListener('dragover', handleDragOver);
-    uploadArea.addEventListener('dragleave', handleDragLeave);
-    uploadArea.addEventListener('drop', handleDrop);
-    audioFile.addEventListener('change', handleFileSelect);
 }
 
 async function checkMicrophonePermission() {
@@ -298,7 +289,7 @@ async function toggleRecording() {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             startRecording(stream);
         } catch (err) {
-            showStatus('❌ Erreur: Microphone non accessible. Utilisez l\'upload de fichier.', 'error');
+            showStatus('❌ Erreur: Microphone non accessible.', 'error');
             console.error('Erreur microphone:', err);
         }
     } else {
@@ -362,39 +353,6 @@ function resetRecordingState() {
     recordBtn.textContent = '🎙️';
 }
 
-// === UPLOAD DE FICHIER ===
-function handleDragOver(e) {
-    e.preventDefault();
-    uploadArea.classList.add('dragover');
-}
-
-function handleDragLeave(e) {
-    e.preventDefault();
-    uploadArea.classList.remove('dragover');
-}
-
-function handleDrop(e) {
-    e.preventDefault();
-    uploadArea.classList.remove('dragover');
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        const file = files[0];
-        if (file.type.startsWith('audio/')) {
-            processAudio(file, file.name);
-        } else {
-            showStatus('❌ Veuillez sélectionner un fichier audio', 'error');
-        }
-    }
-}
-
-function handleFileSelect(e) {
-    if (e.target.files.length > 0) {
-        const file = e.target.files[0];
-        processAudio(file, file.name);
-    }
-}
-
 // === TRAITEMENT AUDIO ===
 async function processAudio(audioBlob, filename) {
     showStatus('🔄 Transcription et exécution de la commande...', 'loading');
@@ -422,8 +380,6 @@ async function processAudio(audioBlob, filename) {
         console.error('Erreur réseau:', error);
     }
 
-    // Reset file input
-    audioFile.value = '';
 }
 
 // === AFFICHAGE ===
@@ -491,12 +447,3 @@ window.addEventListener('beforeunload', function() {
         currentStream.getTracks().forEach(track => track.stop());
     }
 });
-
-// === UTILITAIRES ===
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
