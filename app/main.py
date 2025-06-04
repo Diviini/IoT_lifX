@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 
@@ -22,68 +23,49 @@ speech_processor = SpeechProcessor(model_size="base")
 lifx_controller = LifXController()
 command_parser = CommandParser()
 
+# Modèle Pydantic pour recevoir du texte
+class TextCommand(BaseModel):
+    text: str
+
 
 @app.get("/")
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.post("/process-voice")
-async def process_voice(audio: UploadFile = File(...)):
-    """Traite un fichier audio uploadé depuis le navigateur"""
+@app.post("/process-text")
+async def process_text(command: TextCommand):
+    """Traite directement un texte depuis JavaScript (plus rapide que l'audio)"""
     try:
-        # Lire le contenu du fichier
-        audio_content = await audio.read()
+        text = command.text.strip()
+        print("Debug - Texte reçu:", text)
 
-        # Transcription
-        text = speech_processor.transcribe_uploaded_file(audio_content, language="fr")
-        print("Debug - Transcription:", text)
-
-        if not text.strip():
+        if not text:
             return JSONResponse({
-                "error": "Aucun texte détecté dans l'audio",
+                "error": "Texte vide",
                 "status": "error"
             }, status_code=400)
 
         # Parser la commande
-        command = command_parser.parse(text)
-        print("Debug - Commande parsée:", command)
+        parsed_command = command_parser.parse(text)
+        print("Debug - Commande parsée:", parsed_command)
 
         # Exécuter sur la lampe
-        result = lifx_controller.execute_command(command)
+        result = lifx_controller.execute_command(parsed_command)
 
         return JSONResponse({
             "transcription": text,
-            "command": command,
+            "command": parsed_command,
             "result": result,
             "status": "success"
         })
 
     except Exception as e:
+        print(f"Erreur process_text: {e}")
         return JSONResponse({
             "error": str(e),
             "status": "error"
         }, status_code=500)
-
-
-@app.post("/transcribe-only")
-async def transcribe_only(audio: UploadFile = File(...)):
-    """Transcrit seulement sans exécuter de commande"""
-    try:
-        audio_content = await audio.read()
-        text = speech_processor.transcribe_uploaded_file(audio_content, language="fr")
-
-        return JSONResponse({
-            "transcription": text,
-            "status": "success"
-        })
-
-    except Exception as e:
-        return JSONResponse({
-            "error": str(e),
-            "status": "error"
-        }, status_code=500)
-
 
 @app.get("/health")
 async def health_check():
