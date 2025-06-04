@@ -2,7 +2,6 @@ from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 
@@ -29,6 +28,7 @@ class TextCommand(BaseModel):
     text: str
     brand: str  # "lifx" ou "wiz" (pour le futur)
 
+wiz_controller = WizController()
 
 @app.get("/")
 async def home(request: Request):
