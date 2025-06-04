@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from .speech_processor import SpeechProcessor
 from .lifx_controller import LifXController
 from .command_parser import CommandParser
-
+from .wiz_controller import WizController
 load_dotenv()
 
 app = FastAPI(title="LifX Voice Control")
@@ -19,7 +19,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 speech_processor = SpeechProcessor()
 lifx_controller = LifXController()
 command_parser = CommandParser()
-
+wiz_controller = WizController()
 
 @app.get("/")
 async def home(request: Request):
@@ -46,6 +46,34 @@ async def process_voice(audio: UploadFile = File(...)):
         os.remove(audio_path)
 
         return JSONResponse({
+            "lampe": "LIFX",
+            "transcription": text,
+            "command": command,
+            "result": result,
+            "status": "success"
+        })
+
+    except Exception as e:
+        return JSONResponse({
+            "error": str(e),
+            "status": "error"
+        }, status_code=500)
+
+@app.post("/process-voice-wiz")
+async def process_wiz(audio: UploadFile = File(...)):
+    try:
+        audio_path = f"temp_{audio.filename}"
+        with open(audio_path, "wb") as f:
+            f.write(await audio.read())
+
+        text = speech_processor.transcribe(audio_path)
+        command = command_parser.parse(text)
+        result = await wiz_controller.execute_command(command)
+
+        os.remove(audio_path)
+
+        return JSONResponse({
+            "lampe": "WiZ",
             "transcription": text,
             "command": command,
             "result": result,

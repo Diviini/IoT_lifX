@@ -9,6 +9,10 @@ class CommandParser:
         if any(word in text for word in ['allume', 'allumer', 'active']):
             return {'action': 'turn_on'}
 
+        for color in ['rouge', 'bleu', 'vert', 'jaune', 'violet', 'blanc']:
+            if color in text:
+                return {'action': 'set_color', 'color': color}
+
         if any(word in text for word in ['éteins', 'éteindre', 'ferme']):
             return {'action': 'turn_off'}
 
