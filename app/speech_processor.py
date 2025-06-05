@@ -1,5 +1,6 @@
 import whisper
 import sounddevice as sd
+from faster_whisper import WhisperModel
 import numpy as np
 import os
 import tempfile
@@ -7,7 +8,7 @@ from typing import Optional
 
 
 class SpeechProcessor:
-    def __init__(self, model_size: str = "base"):
+    def __init__(self, model_size: str = "tiny"):
         """
         Initialise le processeur de reconnaissance vocale
 
@@ -15,10 +16,11 @@ class SpeechProcessor:
             model_size: Taille du modèle Whisper ("tiny", "base", "small", "medium", "large")
         """
         print(f"🤖 Chargement du modèle Whisper '{model_size}'...")
-        self.model = whisper.load_model(model_size)
+        self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
+
         print("✅ Modèle chargé avec succès")
 
-    def transcribe(self, audio_path: str, language: str = "fr") -> str:
+    def transcribe(self, audio_path: str) -> str:
         """
         Transcrit un fichier audio en texte
 
@@ -31,15 +33,15 @@ class SpeechProcessor:
         """
         try:
             print(f"🧠 Transcription de {audio_path}...")
-            result = self.model.transcribe(audio_path, language=language)
-            transcribed_text = result["text"].strip()
-            print(f"📝 Transcription: {transcribed_text}")
+            segments, _ = self.model.transcribe(audio_path)
+            transcribed_text = " ".join([segment.text for segment in segments])
+            print("✅ Transcription terminée : ", transcribed_text)
             return transcribed_text
         except Exception as e:
             print(f"❌ Erreur lors de la transcription: {e}")
             raise Exception(f"Erreur de transcription: {str(e)}")
 
-    def record_and_transcribe(self, duration: int = 5, fs: int = 44100, language: str = "fr") -> str:
+    def record_and_transcribe(self, duration: int = 5, fs: int = 44100) -> str:
         """
         Enregistre l'audio depuis le microphone et le transcrit
 
@@ -71,7 +73,7 @@ class SpeechProcessor:
             os.remove(temp_npy)
 
             # Transcription
-            result = self.transcribe(temp_filename, language)
+            result = self.transcribe(temp_filename)
 
             return result
 
@@ -80,7 +82,7 @@ class SpeechProcessor:
             if os.path.exists(temp_filename):
                 os.remove(temp_filename)
 
-    def transcribe_uploaded_file(self, file_content: bytes, language: str = "fr") -> str:
+    def transcribe_uploaded_file(self, file_content: bytes) -> str:
         """
         Transcrit un fichier audio uploadé
 
@@ -97,7 +99,7 @@ class SpeechProcessor:
             temp_filename = temp_file.name
 
         try:
-            result = self.transcribe(temp_filename, language)
+            result = self.transcribe(temp_filename)
             return result
         finally:
             # Nettoyage

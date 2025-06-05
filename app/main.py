@@ -19,7 +19,7 @@ templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Initialisation des composants
-speech_processor = SpeechProcessor(model_size="base")
+speech_processor = SpeechProcessor(model_size="tiny")
 lifx_controller = LifXController()
 command_parser = CommandParser()
 
@@ -76,7 +76,7 @@ async def process_voice(audio: UploadFile = File(...)):
         audio_content = await audio.read()
 
         # Transcription
-        text = speech_processor.transcribe_uploaded_file(audio_content, language="fr")
+        text = speech_processor.transcribe_uploaded_file(audio_content)
         print("Debug - Transcription:", text)
 
         if not text.strip():
@@ -111,7 +111,7 @@ async def transcribe_only(audio: UploadFile = File(...)):
     """Transcrit seulement sans exécuter de commande"""
     try:
         audio_content = await audio.read()
-        text = speech_processor.transcribe_uploaded_file(audio_content, language="fr")
+        text = speech_processor.transcribe_uploaded_file(audio_content)
 
         return JSONResponse({
             "transcription": text,

@@ -150,6 +150,8 @@ function isWakeWordDetected(transcript) {
         'ok lampe',
         'okay lampe',
         'ok lamp',
+        'lamp',
+        'lampe',
         'hey lampe',
         'ok lumière',
         'ok éclairage'
