@@ -6,7 +6,7 @@ let isListening = false;
 let speechRecognition;
 let currentStream;
 let isWaitingForCommand = false; // Boolean pour le mode commande
-let selectBrand = "lifx"; // Marque sélectionnée par défaut
+let selectedBrand = "lifx"; // Marque sélectionnée par défaut
 
 // Éléments DOM
 const recordBtn = document.getElementById('recordBtn');
@@ -331,9 +331,6 @@ async function processTextCommand(text) {
             },
             body: JSON.stringify(requestBody)
         });
-
-
-
 
         const data = await response.json();
 

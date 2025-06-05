@@ -1,13 +1,16 @@
+import asyncio
+
 from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 import os
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 from .speech_processor import SpeechProcessor
 from .lifx_controller import LifXController
-# from .wiz_controller import WizController
+from .wiz_controller import WizController
 from .command_parser import CommandParser
 
 load_dotenv()
@@ -22,13 +25,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 speech_processor = SpeechProcessor(model_size="base")
 lifx_controller = LifXController()
 command_parser = CommandParser()
+wiz_controller = WizController()
 
 # Modèle Pydantic pour recevoir du texte
 class TextCommand(BaseModel):
     text: str
     brand: str  # "lifx" ou "wiz" (pour le futur)
 
-wiz_controller = WizController()
 
 @app.get("/")
 async def home(request: Request):
@@ -57,8 +60,8 @@ async def process_text(command: TextCommand):
         # Détection de la lamp ( lifx ou wiz )
         if brand == "lifx":
             result = lifx_controller.execute_command(parsed_command)
-        # else if type == "wiz":
-        #     result = wiz_controller.execute_command(parsed_command)
+        else :
+            result = asyncio.run(wiz_controller.execute_command(parsed_command))
 
         return JSONResponse({
             "transcription": text,
