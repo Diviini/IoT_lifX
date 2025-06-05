@@ -6,11 +6,15 @@ let isListening = false;
 let speechRecognition;
 let currentStream;
 let isWaitingForCommand = false; // Boolean pour le mode commande
+let selectBrand = "lifx"; // Marque sélectionnée par défaut
 
 // Éléments DOM
 const recordBtn = document.getElementById('recordBtn');
+const recordingText = document.getElementById('recordingText');
 const status = document.getElementById('status');
 const result = document.getElementById('result');
+const lifxBtn = document.getElementById('lifxBtn');
+const wizBtn = document.getElementById('wizBtn');
 
 // Ajout d'un bouton pour activer/désactiver l'écoute en continu
 let listenToggleBtn;
@@ -27,6 +31,45 @@ document.addEventListener('DOMContentLoaded', function() {
         startListening();
     }, 1000); // Délai pour laisser le temps aux permissions
 });
+
+// Gestion de la sélection de marque
+lifxBtn.addEventListener('click', () => selectBrandFunction('lifx'));
+wizBtn.addEventListener('click', () => selectBrandFunction('wiz'));
+
+function updateStatus(message, type = '') {
+    status.textContent = message;
+    status.className = 'status';
+    if (type) {
+        status.classList.add(type);
+    }
+}
+
+// Initialisation
+updateStatus('Choisissez votre marque d\'ampoule connectée');
+
+
+function selectBrandFunction(brand) {
+    selectedBrand = brand;
+
+    // Mise à jour de l'interface
+    lifxBtn.classList.remove('active');
+    wizBtn.classList.remove('active');
+
+    if (brand === 'lifx') {
+        lifxBtn.classList.add('active');
+        updateStatus(`LifX sélectionné - Prêt à recevoir vos commandes vocales`);
+        recordingText.textContent = 'Cliquez pour enregistrer une commande LifX';
+    } else if (brand === 'wiz') {
+        wizBtn.classList.add('active');
+        updateStatus(`Wiz sélectionné - Prêt à recevoir vos commandes vocales`);
+        recordingText.textContent = 'Cliquez pour enregistrer une commande Wiz';
+    }
+
+    // Activer le bouton d'enregistrement
+    recordBtn.disabled = false;
+}
+
+
 
 function createListenToggleButton() {
     // Créer un bouton pour activer/désactiver l'écoute en continu
@@ -180,7 +223,13 @@ function isWakeWordDetected(transcript) {
         'lampe',
         'hey lampe',
         'ok lumière',
-        'ok éclairage'
+        'ok éclairage',
+        'ok lupo',
+        'ok lupin',
+        'oki doki',
+        'luigi twerk',
+        'salut',
+        'bonjour'
     ];
 
     return wakeWords.some(wakeWord =>
@@ -268,15 +317,23 @@ async function processTextCommand(text) {
     console.log('📤 Envoi de la commande:', text);
 
     try {
+        const requestBody = {
+            text: text,
+            brand: selectedBrand
+        };
+
+        console.log('Contenu envoyé au serveur:', requestBody);
+
         const response = await fetch('/process-text', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                text: text
-            })
+            body: JSON.stringify(requestBody)
         });
+
+
+
 
         const data = await response.json();
 

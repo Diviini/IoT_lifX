@@ -10,10 +10,20 @@
     <div class="container">
         <h1>🎤 LifX Voice Control</h1>
 
+        <!-- Sélection de la marque -->
+        <div class="brand-selection">
+            <button id="lifxBtn" class="brand-btn lifx active">
+                💡 LifX
+            </button>
+            <button id="wizBtn" class="brand-btn wiz">
+                🌟 Wiz
+            </button>
+        </div>
+
         <!-- Enregistrement vocal -->
         <div class="recording-section">
             <button id="recordBtn" class="record-btn">🎙️</button>
-            <p>Cliquez pour enregistrer une commande vocale</p>
+            <p id="recordingText">Sélectionnez d'abord une marque d'ampoule</p>
         </div>
 
         <!-- Upload de fichier -->

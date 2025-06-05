@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from .speech_processor import SpeechProcessor
 from .lifx_controller import LifXController
+# from .wiz_controller import WizController
 from .command_parser import CommandParser
 
 load_dotenv()
@@ -26,6 +27,7 @@ command_parser = CommandParser()
 # Modèle Pydantic pour recevoir du texte
 class TextCommand(BaseModel):
     text: str
+    brand: str  # "lifx" ou "wiz" (pour le futur)
 
 
 @app.get("/")
@@ -38,7 +40,9 @@ async def process_text(command: TextCommand):
     """Traite directement un texte depuis JavaScript (plus rapide que l'audio)"""
     try:
         text = command.text.strip()
+        brand = command.brand.strip()
         print("Debug - Texte reçu:", text)
+        print("Debug - Type de lampe:", brand)
 
         if not text:
             return JSONResponse({
@@ -50,8 +54,11 @@ async def process_text(command: TextCommand):
         parsed_command = command_parser.parse(text)
         print("Debug - Commande parsée:", parsed_command)
 
-        # Exécuter sur la lampe
-        result = lifx_controller.execute_command(parsed_command)
+        # Détection de la lamp ( lifx ou wiz )
+        if brand == "lifx":
+            result = lifx_controller.execute_command(parsed_command)
+        # else if type == "wiz":
+        #     result = wiz_controller.execute_command(parsed_command)
 
         return JSONResponse({
             "transcription": text,

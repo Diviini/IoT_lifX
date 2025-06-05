@@ -1,4 +1,4 @@
-* {
+  * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -33,6 +33,54 @@ h1 {
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+/* Nouveaux styles pour les boutons de sélection */
+.brand-selection {
+    margin-bottom: 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.brand-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 15px;
+    padding: 15px 30px;
+    color: white;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+    min-width: 120px;
+}
+
+.brand-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.brand-btn.active {
+    background: linear-gradient(45deg, #4CAF50, #45a049);
+    border-color: #4CAF50;
+    box-shadow: 0 4px 20px rgba(76, 175, 80, 0.4);
+    transform: translateY(-2px);
+}
+
+.brand-btn.lifx.active {
+    background: linear-gradient(45deg, #ff6b35, #f7931e);
+    border-color: #ff6b35;
+    box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+}
+
+.brand-btn.wiz.active {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    border-color: #667eea;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+}
+
 .recording-section {
     margin-bottom: 30px;
 }
@@ -63,6 +111,12 @@ h1 {
 .record-btn.recording {
     background: linear-gradient(45deg, #ff4757, #c44569);
     animation: pulse 1s infinite;
+}
+
+.record-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
 }
 
 @keyframes pulse {
@@ -190,6 +244,15 @@ h1 {
 
     h1 {
         font-size: 2em;
+    }
+
+    .brand-selection {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .brand-btn {
+        min-width: 150px;
     }
 
     .record-btn {
