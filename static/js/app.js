@@ -3,9 +3,9 @@ let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
 let isListening = false;
-let wakeWordRecognition;
-let commandRecognition;
+let speechRecognition;
 let currentStream;
+let isWaitingForCommand = false; // Boolean pour le mode commande
 
 // Éléments DOM
 const recordBtn = document.getElementById('recordBtn');
@@ -20,11 +20,11 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
     checkMicrophonePermission();
     createListenToggleButton();
-    initializeWakeWordDetection();
+    initializeSpeechRecognition();
 
     // Démarrer automatiquement l'écoute H24
     setTimeout(() => {
-        startWakeWordListening();
+        startListening();
     }, 1000); // Délai pour laisser le temps aux permissions
 });
 
@@ -47,7 +47,7 @@ function createListenToggleButton() {
     // Insérer le bouton à côté du bouton d'enregistrement
     recordBtn.parentNode.insertBefore(listenToggleBtn, recordBtn.nextSibling);
 
-    listenToggleBtn.addEventListener('click', toggleWakeWordListening);
+    listenToggleBtn.addEventListener('click', toggleListening);
 }
 
 function initializeEventListeners() {
@@ -65,13 +65,13 @@ async function checkMicrophonePermission() {
         recordBtn.style.opacity = '0.5';
         recordBtn.title = 'Microphone non accessible - Utilisez l\'upload de fichier';
         listenToggleBtn.style.opacity = '0.5';
-        listenToggleBtn.disabled = true;
+        listenTogileBtn.disabled = true;
         listenToggleBtn.innerHTML = '❌ Micro non accessible';
     }
 }
 
-// === DÉTECTION MOT-CLÉ (WAKE WORD) ===
-function initializeWakeWordDetection() {
+// === RECONNAISSANCE VOCALE UNIFIÉE ===
+function initializeSpeechRecognition() {
     // Vérifier si l'API Speech Recognition est disponible
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         console.warn('⚠️ Speech Recognition non supporté dans ce navigateur');
@@ -83,63 +83,89 @@ function initializeWakeWordDetection() {
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    // Configuration pour la détection du mot-clé
-    wakeWordRecognition = new SpeechRecognition();
-    wakeWordRecognition.continuous = true;
-    wakeWordRecognition.interimResults = false;
-    wakeWordRecognition.lang = 'fr-FR';
+    // Un seul objet Speech Recognition pour tout
+    speechRecognition = new SpeechRecognition();
+    speechRecognition.continuous = true;
+    speechRecognition.interimResults = false;
+    speechRecognition.lang = 'fr-FR';
 
-    wakeWordRecognition.onresult = function(event) {
+    speechRecognition.onresult = function(event) {
         for (let i = event.resultIndex; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript.toLowerCase().trim();
             console.log('🔍 Détection:', transcript);
 
-            // Vérifier si le mot-clé est détecté
-            if (isWakeWordDetected(transcript)) {
-                console.log('🎯 Mot-clé détecté:', transcript);
-                showStatus('🎯 "Ok lampe" détecté! Démarrage de l\'enregistrement...', 'success');
+            if (isWaitingForCommand) {
+                // Mode commande : traiter tout ce qui est dit
+                console.log('📝 Commande reçue:', transcript);
+                handleCommand(transcript);
+                return;
+            } else {
+                // Mode wake word : chercher "ok lampe"
+                if (isWakeWordDetected(transcript)) {
+                    console.log('🎯 Mot-clé détecté:', transcript);
+                    showStatus('🎯 "Ok lampe" détecté! Énoncez votre commande...', 'success');
 
-                // Arrêter temporairement l'écoute du mot-clé
-                wakeWordRecognition.stop();
+                    // Passer en mode commande
+                    isWaitingForCommand = true;
 
-                // Démarrer l'enregistrement de commande
-                setTimeout(() => {
-                    startCommandRecording();
-                }, 500);
-
-                break;
+                    // Timeout automatique après 5 secondes
+                    setTimeout(() => {
+                        if (isWaitingForCommand) {
+                            console.log('⏰ Timeout commande - retour au mode écoute');
+                            isWaitingForCommand = false;
+                            if (isListening) {
+                                showStatus('👂 Écoute H24 réactivée - Dites "Ok lampe" pour commander', 'listening');
+                            }
+                        }
+                    }, 5000);
+                }
             }
         }
     };
 
-    wakeWordRecognition.onerror = function(event) {
-        console.error('Erreur wake word recognition:', event.error);
-        if (event.error === 'not-allowed') {
-            showStatus('❌ Permission microphone refusée pour l\'écoute H24', 'error');
-            stopWakeWordListening();
-        } else {
-            // Redémarrer automatiquement en cas d'autres erreurs
+    speechRecognition.onerror = function(event) {
+        console.error('Erreur speech recognition:', event.error);
+
+        let errorMessage = 'Erreur de reconnaissance vocale';
+
+        switch(event.error) {
+            case 'no-speech':
+                console.log('⚠️ Aucune parole détectée');
+                return; // Pas d'erreur, c'est normal
+            case 'audio-capture':
+                errorMessage = 'Erreur de capture audio';
+                break;
+            case 'not-allowed':
+                errorMessage = 'Permission microphone refusée';
+                stopListening();
+                break;
+            case 'network':
+                errorMessage = 'Erreur réseau pour la reconnaissance vocale';
+                break;
+            case 'aborted':
+                console.log('🔇 Reconnaissance vocale interrompue');
+                return; // Pas d'erreur à afficher
+            default:
+                errorMessage = `Erreur: ${event.error}`;
+        }
+
+        showStatus(`❌ ${errorMessage}`, 'error');
+
+        // Redémarrage automatique sauf si c'est une erreur de permission
+        if (event.error !== 'not-allowed' && isListening) {
             setTimeout(() => {
-                if (isListening) {
-                    try {
-                        wakeWordRecognition.start();
-                    } catch (e) {
-                        console.log('Tentative de redémarrage après erreur...');
-                    }
-                }
+                restartListening();
             }, 2000);
         }
     };
 
-    wakeWordRecognition.onend = function() {
+    speechRecognition.onend = function() {
+        console.log('🔚 Speech recognition terminée');
+
         if (isListening) {
-            // Redémarrer automatiquement l'écoute si elle était active
+            // Redémarrage automatique
             setTimeout(() => {
-                try {
-                    wakeWordRecognition.start();
-                } catch (e) {
-                    console.log('Redémarrage automatique de l\'écoute H24...');
-                }
+                restartListening();
             }, 500);
         }
     };
@@ -150,6 +176,8 @@ function isWakeWordDetected(transcript) {
         'ok lampe',
         'okay lampe',
         'ok lamp',
+        'lamp',
+        'lampe',
         'hey lampe',
         'ok lumière',
         'ok éclairage'
@@ -161,128 +189,118 @@ function isWakeWordDetected(transcript) {
     );
 }
 
-function toggleWakeWordListening() {
+function handleCommand(commandText) {
+    // Sortir du mode commande
+    isWaitingForCommand = false;
+
+    // Traiter la commande
+    processTextCommand(commandText);
+}
+
+function toggleListening() {
     if (!isListening) {
-        startWakeWordListening();
+        startListening();
     } else {
-        stopWakeWordListening();
+        stopListening();
     }
 }
 
-function startWakeWordListening() {
-    if (!wakeWordRecognition) {
+function startListening() {
+    if (!speechRecognition) {
         showStatus('❌ Speech Recognition non disponible', 'error');
         return;
     }
 
     try {
-        wakeWordRecognition.start();
+        speechRecognition.start();
         isListening = true;
+        isWaitingForCommand = false;
         listenToggleBtn.innerHTML = '🛑 Arrêter l\'écoute H24';
         listenToggleBtn.style.background = '#f44336';
         showStatus('👂 Écoute H24 activée - Dites "Ok lampe" pour commander', 'listening');
-        console.log('👂 Écoute H24 du mot-clé activée');
+        console.log('👂 Écoute H24 activée');
     } catch (err) {
-        console.error('Erreur démarrage wake word:', err);
+        console.error('Erreur démarrage speech recognition:', err);
         if (err.name === 'InvalidStateError') {
-            // Le recognition est déjà en cours, on l'arrête d'abord
-            wakeWordRecognition.stop();
-            setTimeout(() => startWakeWordListening(), 1000);
+            // Déjà en cours, on arrête d'abord
+            speechRecognition.stop();
+            setTimeout(() => startListening(), 1000);
         }
     }
 }
 
-function stopWakeWordListening() {
-    if (wakeWordRecognition) {
-        wakeWordRecognition.stop();
+function stopListening() {
+    if (speechRecognition) {
+        speechRecognition.stop();
     }
     isListening = false;
+    isWaitingForCommand = false;
     listenToggleBtn.innerHTML = '👂 Réactiver l\'écoute H24';
     listenToggleBtn.style.background = '#2196F3';
     showStatus('🔇 Écoute H24 désactivée');
-    console.log('🔇 Écoute H24 du mot-clé désactivée');
+    console.log('🔇 Écoute H24 désactivée');
 }
 
-// === ENREGISTREMENT DE COMMANDE APRÈS MOT-CLÉ ===
-async function startCommandRecording() {
+function restartListening() {
+    if (!isListening) return;
+
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        currentStream = stream;
-
-        // Démarrer l'enregistrement automatiquement
-        audioChunks = [];
-
-        const options = { mimeType: 'audio/webm' };
-        try {
-            mediaRecorder = new MediaRecorder(stream, options);
-        } catch (err) {
-            mediaRecorder = new MediaRecorder(stream);
+        speechRecognition.start();
+        console.log('🔄 Speech recognition redémarrée');
+        if (!isWaitingForCommand) {
+            showStatus('👂 Écoute H24 réactivée - Dites "Ok lampe" pour commander', 'listening');
         }
-
-        mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                audioChunks.push(event.data);
-            }
-        };
-
-        mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            processAudio(audioBlob, 'voice_command.webm');
-
-            // Arrêter le stream
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
-                currentStream = null;
-            }
-
-            // Redémarrer l'écoute du mot-clé après un délai
-            setTimeout(() => {
-                if (isListening) {
-                    try {
-                        wakeWordRecognition.start();
-                        showStatus('👂 Écoute H24 réactivée - Dites "Ok lampe" pour commander', 'listening');
-                    } catch (e) {
-                        console.log('Redémarrage automatique de l\'écoute H24...');
-                    }
-                }
-            }, 2000);
-        };
-
-        mediaRecorder.onerror = (event) => {
-            console.error('Erreur MediaRecorder:', event);
-            showStatus('❌ Erreur lors de l\'enregistrement', 'error');
-        };
-
-        mediaRecorder.start();
-        showStatus('🎙️ Énoncez votre commande... (arrêt automatique dans 5s)', 'recording');
-
-        // Arrêt automatique après 5 secondes
-        setTimeout(() => {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-            }
-        }, 5000);
-
-        console.log('🎙️ Enregistrement de commande démarré');
-
     } catch (err) {
-        console.error('Erreur accès microphone pour commande:', err);
-        showStatus('❌ Erreur microphone pour la commande', 'error');
-
-        // Redémarrer l'écoute du mot-clé
-        if (isListening) {
-            setTimeout(() => {
-                try {
-                    wakeWordRecognition.start();
-                } catch (e) {
-                    console.log('Redémarrage de l\'écoute...');
-                }
-            }, 1000);
+        console.error('Erreur redémarrage:', err);
+        if (err.name === 'InvalidStateError') {
+            // Déjà en cours, pas de problème
+            console.log('Speech recognition déjà active');
+        } else {
+            // Réessayer plus tard
+            setTimeout(() => restartListening(), 2000);
         }
     }
 }
 
-// === ENREGISTREMENT VOCAL MANUEL (bouton) ===
+// === TRAITEMENT COMMANDE TEXTE ===
+async function processTextCommand(text) {
+    showStatus('🔄 Traitement de la commande...', 'loading');
+    console.log('📤 Envoi de la commande:', text);
+
+    try {
+        const response = await fetch('/process-text', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: text
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            showStatus('✅ Commande exécutée avec succès!', 'success');
+            showResult(data, text);
+        } else {
+            showStatus(`❌ Erreur: ${data.error}`, 'error');
+            console.error('Erreur serveur:', data);
+        }
+    } catch (error) {
+        showStatus(`❌ Erreur de connexion: ${error.message}`, 'error');
+        console.error('Erreur réseau:', error);
+    }
+
+    // Retour au mode écoute après traitement
+    setTimeout(() => {
+        if (isListening) {
+            showStatus('👂 Écoute H24 réactivée - Dites "Ok lampe" pour commander', 'listening');
+        }
+    }, 2000);
+}
+
+// === ENREGISTREMENT VOCAL MANUEL (bouton) - Garde l'ancienne méthode ===
 async function toggleRecording() {
     if (!isRecording) {
         try {
@@ -353,7 +371,7 @@ function resetRecordingState() {
     recordBtn.textContent = '🎙️';
 }
 
-// === TRAITEMENT AUDIO ===
+// === TRAITEMENT AUDIO (pour le bouton manuel) ===
 async function processAudio(audioBlob, filename) {
     showStatus('🔄 Transcription et exécution de la commande...', 'loading');
 
@@ -379,7 +397,6 @@ async function processAudio(audioBlob, filename) {
         showStatus(`❌ Erreur de connexion: ${error.message}`, 'error');
         console.error('Erreur réseau:', error);
     }
-
 }
 
 // === AFFICHAGE ===
@@ -411,19 +428,38 @@ function showStatus(message, type = '') {
     console.log('Status:', message);
 }
 
-function showResult(data) {
-    const resultHTML = `
-        <h3>📝 Transcription:</h3>
-        <p style="font-size: 1.2em; margin-bottom: 15px; font-weight: bold; color: #4CAF50;">
-            "${data.transcription}"
-        </p>
+function showResult(data, originalText = null) {
+    let resultHTML = '';
 
-        <h3>🧠 Commande parsée:</h3>
-        <pre>${JSON.stringify(data.command, null, 2)}</pre>
+    if (originalText) {
+        // Résultat de la commande vocale directe
+        resultHTML = `
+            <h3>📝 Commande vocale:</h3>
+            <p style="font-size: 1.2em; margin-bottom: 15px; font-weight: bold; color: #4CAF50;">
+                "${originalText}"
+            </p>
 
-        <h3>💡 Résultat LifX:</h3>
-        <pre>${JSON.stringify(data.result, null, 2)}</pre>
-    `;
+            <h3>🧠 Commande parsée:</h3>
+            <pre>${JSON.stringify(data.command || data, null, 2)}</pre>
+
+            <h3>💡 Résultat LifX:</h3>
+            <pre>${JSON.stringify(data.result || data, null, 2)}</pre>
+        `;
+    } else {
+        // Résultat de l'enregistrement audio (méthode originale)
+        resultHTML = `
+            <h3>📝 Transcription:</h3>
+            <p style="font-size: 1.2em; margin-bottom: 15px; font-weight: bold; color: #4CAF50;">
+                "${data.transcription}"
+            </p>
+
+            <h3>🧠 Commande parsée:</h3>
+            <pre>${JSON.stringify(data.command, null, 2)}</pre>
+
+            <h3>💡 Résultat LifX:</h3>
+            <pre>${JSON.stringify(data.result, null, 2)}</pre>
+        `;
+    }
 
     result.innerHTML = resultHTML;
     result.classList.remove('hidden');
@@ -441,7 +477,7 @@ window.addEventListener('error', function(e) {
 // Nettoyer les ressources quand la page se ferme
 window.addEventListener('beforeunload', function() {
     if (isListening) {
-        stopWakeWordListening();
+        stopListening();
     }
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
